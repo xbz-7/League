@@ -21,7 +21,9 @@ return function ()
 
     local RMenu = menu:AddMenu("R", "R");
     local autoR = RMenu:AddCheckBox(("autoR"), ("Use R"));
-    local fleeR = RMenu:AddCheckBox(("fleeR"), ("Flee R if enemy close (Z)"));
+    local positionR = RMenu:AddCheckBox(("positionR"), ("Draw Shroom Positions"));
+    local use_positionsR = RMenu:AddCheckBox(("use_positionsR"), ("Use Shroom Positions [X]"));
+    local fleeR = RMenu:AddCheckBox(("fleeR"), ("Flee R if enemy close [Z]"));
     local farmR = RMenu:AddCheckBox(("farmR"), ("Use R Farming"));
     local jungleR = RMenu:AddCheckBox(("jungleR"), ("Use R Jungling"));
 
