@@ -4,18 +4,24 @@ return function()
     local W = Champions.W;
     --local E = Champions.E;
     local R = Champions.R;
-    local fleeRcooldown = false
-    local Rcooldown = false
-    local Rcooldown_close = false
+    local shroom_cooldown_flee = false
+    local shroom_cooldown = false
+    local shroom_cooldown_close = false
 
     -- QWR
     -- W gapclose lowhp enemy
     -- W on evade
     -- W flee
     -- Jungle farming
-    -- R flee under localplayer
-    -- R on enemy / R under localplayer if enemy is close
-    -- watermark with 2 style
+    -- Shroom farming to middle of the wave (3minion minimum)
+    -- Shroom flee under localplayer
+    -- Shroom on enemy / R under localplayer if enemy is close
+    -- animated watermark with 2 styles
+    -- Shroom locations
+    -- Auto shroom on set locations holding X
+    -- Shroom drawings including locations
+    -- Shroom on CC
+
 
     local shroomtable = {
         { x = 3316.20,  y = -74.06, z = 9334.85 },
@@ -125,11 +131,11 @@ return function()
         if (Champions.Flee) then 
             if menu.R.fleeR.value and Player.position:CountEnemiesInRange(500) > 0 then
 
-                    if not fleeRcooldown then
+                    if not shroom_cooldown_flee then
                         R:Cast(Player.position);
-                        fleeRcooldown = true
+                        shroom_cooldown_flee = true
                         Common.DelayAction(function()
-                        fleeRcooldown = false
+                            shroom_cooldown_flee = false
                         print("<font color='#50C878'>".."shroom cast available again (FLEE)")
                     end, 5) -- 5 sec cooldown
                 end
@@ -138,20 +144,31 @@ return function()
 
         if Champions.LaneClear then 
             if menu.R.farmR.value then
+                local minion_count = 0
+                local min_x, max_x, min_y, max_y, min_z, max_z = math.huge, -math.huge, math.huge, -math.huge, math.huge, -math.huge
 
                 for k, entity in ObjectManager.enemyLaneMinions:pairs() do
-                    if entity:IsValidTarget(R.range) and entity.hp < health then
-                        health = entity.hp;
-                        bestTarget = entity;
+                    if entity:IsValidTarget(R.range) then
+                        minion_count = minion_count + 1
+                        min_x = math.min(min_x, entity.position.x)
+                        max_x = math.max(max_x, entity.position.x)
+                        min_y = math.min(min_y, entity.position.y)
+                        max_y = math.max(max_y, entity.position.y)
+                        min_z = math.min(min_z, entity.position.z)
+                        max_z = math.max(max_z, entity.position.z)
                     end
-                end -- still scuffed
+                end
 
-                if (bestTarget) and R:GetDamage(bestTarget) > bestTarget.totalHealth then
-                    if not Rcooldown then
-                        R:Cast(bestTarget);
-                        Rcooldown = true
+                if minion_count > 3 then
+                    local mid_x = (min_x + max_x) / 2 local mid_y = (min_y + max_y) / 2 local mid_z = (min_z + max_z) / 2
+                    minions_middle = Math.Vector3(mid_x, mid_y, mid_z)
+
+                    if not shroom_cooldown then
+                        R:Cast(minions_middle);
+                        print("<font color='#50C878'>".."casting shroom to middle of wave - counted: "..minion_count)
+                        shroom_cooldown = true
                         Common.DelayAction(function()
-                            Rcooldown = false
+                            shroom_cooldown = false
                             print("<font color='#50C878'>".."shroom cast available again (FARM)")
                         end, 5) -- 5 sec cooldown
                     end
@@ -170,13 +187,13 @@ return function()
 
             Q:Cast(target)
             if menu.R.jungleR.value then
-                if not Rcooldown then
+                if not shroom_cooldown then
                     if target and target.totalHealth > 350 then 
                         print("<font color='#50C878'>".."Casting shroom (JUNGLE)")
                         R:Cast(target);
-                        Rcooldown = true
+                        shroom_cooldown = true
                         Common.DelayAction(function()
-                            Rcooldown = false
+                            shroom_cooldown = false
                         end, 6) -- 6 sec cooldown
                     end
                 end
@@ -193,25 +210,38 @@ return function()
 
                 if (Champions.Combo and Player.mp > Champions.RMANA) then
                     local enemy_close = t.position:Distance(Player.position) < 300
+                    local enemy_is_cc = t:HasBuffOfType(7) or t:HasBuffOfType(12) or t:HasBuffOfType(13) or t:HasBuffOfType(32) or t:HasBuffOfType(33) or t:HasBuffOfType(37)
 
                     if enemy_close then -- cast shroom to localplayer position instead of enemy
-                        if not Rcooldown_close then
+                        if not shroom_cooldown_close then
                             R:Cast(Player.position);
-                            Rcooldown_close = true
+                            shroom_cooldown_close = true
                             Common.DelayAction(function()
-                                Rcooldown_close = false
+                                shroom_cooldown_close = false
                                 print("<font color='#50C878'>".."shroom cast available again (COMBO CLOSE)")
                             end, 3) -- 3 sec cooldown
                         end
-                    else -- enemy
-                        if not Rcooldown then 
+                    elseif enemy_is_cc then -- enemy
+                        if not shroom_cooldown then 
                             local cast_pos = R:GetPrediction(t).castPosition;
                             R:Cast(cast_pos);
-                            Rcooldown = true
+                            shroom_cooldown = true
                             Common.DelayAction(function()
-                                Rcooldown = false
+                                shroom_cooldown = false
                                 print("<font color='#50C878'>".."shroom cast available again (COMBO)")
                             end, 5) -- 5 sec cooldown
+                        end
+                    else
+                        if t.totalHealth < 1000 then
+                            if not shroom_cooldown then
+                                local cast_pos = R:GetPrediction(t).castPosition;
+                                R:Cast(cast_pos);
+                                shroom_cooldown = true
+                                Common.DelayAction(function()
+                                shroom_cooldown = false
+                                print("<font color='#50C878'>".."shroom cast available again (COMBO)")
+                            end, 5) -- 5 sec cooldown
+                            end
                         end
                     end
                 end
@@ -226,6 +256,7 @@ return function()
                 if Player.position:Distance(Math.Vector3(shroom.x, shroom.y, shroom.z)) < 200 then
                     place_shroom = Math.Vector3(shroom.x, shroom.y, shroom.z)
                     if R:Cast(place_shroom) then
+                        print("<font color='#50C878'>".."casting shroom to preset location")
                         table.remove(shroomtable, k)
                         table.insert(removed_spots, place_shroom)
                     end
@@ -238,7 +269,7 @@ return function()
                 shroom_cooldown = true
                 Common.DelayAction(function()
                     shroom_cooldown = false
-                end, 5)             -- 5 sec cooldown
+                end, 5) -- 5 sec cooldown
             end
 
             if shroom_here == nil then
@@ -255,7 +286,7 @@ return function()
         if Champions.LagFree(1) then auto_shroom() end
     end
 
-    local function drawshrooms()
+    local function draw_shrooms()
         for k, shroom in ipairs(shrooms_here) do 
             -- existing shrooms
             Renderer.DrawCircle3D(Math.Vector3(shroom.x, shroom.y, shroom.z), 150, 20, 2, 0x8050C878)
@@ -270,17 +301,21 @@ return function()
     end
 
     local function draw()
+        local animationTime = Game.GetTime()
+        local animationOffset = math.sin(animationTime * 2) * 5
+        local color = 0xCC50C878 + math.floor(animationOffset * 20)
+
         if menu.Draw.Draw_watermark.value == 0 then
             Renderer.DrawRectFilled(Math.Vector2(1000, 8), Math.Vector2(898, 24), 0x8050C878, 10.0, Renderer.ImDrawFlags.None)
             Renderer.DrawRectFilled(Math.Vector2(900, 9), Math.Vector2(1000, 23), 0xFF200060, 10.0, Renderer.ImDrawFlags.None)
-            Renderer.DrawText("Muscular Teemo", Math.Vector2(912, 9), 13, 0xCC50C878 )
+            Renderer.DrawText("Muscular Teemo", Math.Vector2(912, 9), 13, color )
         end
 
         if menu.Draw.Draw_watermark.value == 1 then
-            Renderer.DrawRectFilled(Math.Vector2(941, 8), Math.Vector2(1001, 24), 0x99FFD700, 10.0, Renderer.ImDrawFlags.None)
-            Renderer.DrawRectFilled(Math.Vector2(898, 8), Math.Vector2(959, 24), 0x8050C878, 10.0, Renderer.ImDrawFlags.None)
+            Renderer.DrawRectFilled(Math.Vector2(941 - animationOffset * 3 , 8), Math.Vector2(1001, 24), 0x99FFD700, 10.0, Renderer.ImDrawFlags.None)
+            Renderer.DrawRectFilled(Math.Vector2(898, 8), Math.Vector2(959 + animationOffset * 3, 24), 0x8050C878, 10.0, Renderer.ImDrawFlags.None)
             Renderer.DrawRectFilled(Math.Vector2(900, 9), Math.Vector2(1000, 23), 0xFF200060, 10.0, Renderer.ImDrawFlags.None)
-            Renderer.DrawText("Muscular Teemo", Math.Vector2(912, 9), 13, 0xCC50C878 )
+            Renderer.DrawText("Muscular Teemo", Math.Vector2(912, 9), 13, color)
         end
     end
 
@@ -288,11 +323,18 @@ return function()
         if Q:Ready() then q_logic() end
     end
 
+    local function close_enough(pos1, pos2, threshold)
+        local dx = pos1.x - pos2.x
+        local dy = pos1.y - pos2.y
+        local dz = pos1.z - pos2.z
+        return (dx * dx + dy * dy + dz * dz) <= (threshold * threshold) 
+    end
+
     Callback.Bind(CallbackType.OnTick, ontick)
     Callback.Bind(CallbackType.OnAfterAttack, after_attack)
     Callback.Bind(CallbackType.OnAfterAttack, shroom_combo)
     Callback.Bind(CallbackType.OnImguiDraw, draw)
-    Callback.Bind(CallbackType.OnDraw, drawshrooms)
+    Callback.Bind(CallbackType.OnDraw, draw_shrooms)
 
     Callback.Bind(CallbackType.OnObjectCreate, function(shroom_object)
         if shroom_object:IsValid() and (shroom_object:GetUniqueName():find("Noxious Trap")) then
@@ -305,12 +347,6 @@ return function()
         end
     end)
 
-    local function close_enough(pos1, pos2, threshold)
-        local dx = pos1.x - pos2.x
-        local dy = pos1.y - pos2.y
-        local dz = pos1.z - pos2.z
-        return (dx * dx + dy * dy + dz * dz) <= (threshold * threshold) 
-    end
     Callback.Bind(CallbackType.OnObjectRemove, function(shroom_object)
         if shroom_object:IsValid() and (shroom_object:GetUniqueName():find("Noxious Trap")) then
             local shroom_position = {
