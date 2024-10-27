@@ -30,6 +30,7 @@ return function ()
     local table = {
         "Regular",
         "Secondary",
+        "New",
     }
 
     local Drawmenu = menu:AddMenu("Draw", "Draw")

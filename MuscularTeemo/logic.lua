@@ -16,11 +16,23 @@ return function()
     -- Shroom farming to middle of the wave (3minion minimum)
     -- Shroom flee under localplayer
     -- Shroom on enemy / R under localplayer if enemy is close
-    -- animated watermark with 2 styles
+    -- animated watermark with 3 styles
     -- Shroom locations
     -- Auto shroom on set locations holding X
     -- Shroom drawings including locations
     -- Shroom on CC
+    -- dev debug
+
+    -- changelog v1.2
+    --[[
+
+    Added new watermark style
+    Fixed R trying to cast on shroomspot when R not ready
+    Fixed shroomspot range
+    Added dev debug drawings instead of annoying chat prints
+
+    ]]
+    local debug_text = "chilling"
 
 
     local shroomtable = {
@@ -74,14 +86,14 @@ return function()
             if menu.Q.comboQ.value then
                 if (Champions.Combo and Player.mp > Champions.QMANA) then
                     Q:Cast(t);
-                    print("<font color='#50C878'>".."Casted Q")
+                    debug_text = "casted Q"
                 end
             end
 
             if menu.Q.harassQ.value then 
                 if (Champions.Harass and Player.mp > Champions.QMANA) then
                     Q:Cast(t);
-                    print("<font color='#50C878'>".."Casted Q")
+                    debug_text = "casted Q"
                 end
             end
         end    
@@ -93,14 +105,14 @@ return function()
         if menu.W.autoW.value and Player.mp > Champions.WMANA then
             if (Champions.Combo or Champions.Harass) then
                 if Player.position:CountEnemiesInRange(400) > 0  then
-                    print("<font color='#50C878'>".."Cast W to anti-gapclose")
+                    debug_text = "Cast W to anti-gapclose"
                     W:Cast();
                 end
 
             if menu.W.gapcloseW.value then
                 if t and t:IsValidTarget(1150) then
                     if t.totalHealth < 1000 then
-                        print("<font color='#50C878'>".."Cast W to gapclose lowhp enemy")
+                        debug_text = "Cast W to gapclose lowhp enemy"
                         W:Cast();
                     end
                 end
@@ -108,13 +120,13 @@ return function()
         end
 
             if Evade.IsEvading() then
-                print("<font color='#50C878'>".."Cast W for (EVADE)")
+                debug_text = "Cast W for (EVADE)"
                 W:Cast();
             end
 
             if (Champions.Flee) then 
                 if Player.position:CountEnemiesInRange(900) > 0 then
-                    print("<font color='#50C878'>".."Cast W for (FLEE)")
+                    debug_text = "Cast W for (FLEE)"
                     W:Cast();
                 end
             end
@@ -136,7 +148,7 @@ return function()
                         shroom_cooldown_flee = true
                         Common.DelayAction(function()
                             shroom_cooldown_flee = false
-                        print("<font color='#50C878'>".."shroom cast available again (FLEE)")
+                        debug_text = "shroom cast available again (FLEE)"
                     end, 5) -- 5 sec cooldown
                 end
             end
@@ -165,11 +177,11 @@ return function()
 
                     if not shroom_cooldown then
                         R:Cast(minions_middle);
-                        print("<font color='#50C878'>".."casting shroom to middle of wave - counted: "..minion_count)
+                        debug_text = "casted shroom to middle of wave - counted: "..minion_count.." hittable"
                         shroom_cooldown = true
                         Common.DelayAction(function()
                             shroom_cooldown = false
-                            print("<font color='#50C878'>".."shroom cast available again (FARM)")
+                            debug_text = "shroom cast available again (FARM)"
                         end, 5) -- 5 sec cooldown
                     end
                 end
@@ -188,13 +200,15 @@ return function()
             Q:Cast(target)
             if menu.R.jungleR.value then
                 if not shroom_cooldown then
-                    if target and target.totalHealth > 350 then 
-                        print("<font color='#50C878'>".."Casting shroom (JUNGLE)")
-                        R:Cast(target);
-                        shroom_cooldown = true
-                        Common.DelayAction(function()
-                            shroom_cooldown = false
-                        end, 6) -- 6 sec cooldown
+                    if target and target.totalHealth > 350 then
+                        if R:Ready() then  
+                            debug_text = "casted shroom (JUNGLE)"
+                            R:Cast(target);
+                            shroom_cooldown = true
+                            Common.DelayAction(function()
+                                shroom_cooldown = false
+                            end, 6) -- 6 sec cooldown
+                        end
                     end
                 end
             end
@@ -218,7 +232,7 @@ return function()
                             shroom_cooldown_close = true
                             Common.DelayAction(function()
                                 shroom_cooldown_close = false
-                                print("<font color='#50C878'>".."shroom cast available again (COMBO CLOSE)")
+                                debug_text = "shroom cast available again (COMBO CLOSE)"
                             end, 3) -- 3 sec cooldown
                         end
                     elseif enemy_is_cc then -- enemy
@@ -228,7 +242,7 @@ return function()
                             shroom_cooldown = true
                             Common.DelayAction(function()
                                 shroom_cooldown = false
-                                print("<font color='#50C878'>".."shroom cast available again (COMBO)")
+                                debug_text = "shroom cast available again (COMBO)"
                             end, 5) -- 5 sec cooldown
                         end
                     else
@@ -239,7 +253,7 @@ return function()
                                 shroom_cooldown = true
                                 Common.DelayAction(function()
                                 shroom_cooldown = false
-                                print("<font color='#50C878'>".."shroom cast available again (COMBO)")
+                                debug_text = "shroom cast available again (COMBO)"
                             end, 5) -- 5 sec cooldown
                             end
                         end
@@ -253,18 +267,18 @@ return function()
     local function auto_shroom()
         if Champions.LastHit then
             for k, shroom in ipairs(shroomtable) do
-                if Player.position:Distance(Math.Vector3(shroom.x, shroom.y, shroom.z)) < 200 then
+                if Player.position:Distance(Math.Vector3(shroom.x, shroom.y, shroom.z)) < 450 and R:Ready() then
                     place_shroom = Math.Vector3(shroom.x, shroom.y, shroom.z)
                     if R:Cast(place_shroom) then
-                        print("<font color='#50C878'>".."casting shroom to preset location")
+                        debug_text = "casted shroom to preset location"
                         table.remove(shroomtable, k)
                         table.insert(removed_spots, place_shroom)
                     end
-                    --print("Near shroom at: ", shroom.x, shroom.y, shroom.z)
                 end
             end
 
-            if not shroom_cooldown and place_shroom ~= nil and Player.position:Distance(place_shroom) < 200 then
+            if not shroom_cooldown and place_shroom ~= nil and Player.position:Distance(place_shroom) < 200 and R:Ready() then
+
                 R:Cast(place_shroom)
                 shroom_cooldown = true
                 Common.DelayAction(function()
@@ -277,7 +291,6 @@ return function()
             end
         end
     end
-
 
     local function ontick()
         if Champions.LagFree(0) then setMana(); end
@@ -301,9 +314,11 @@ return function()
     end
 
     local function draw()
-        local animationTime = Game.GetTime()
-        local animationOffset = math.sin(animationTime * 2) * 5
-        local color = 0xCC50C878 + math.floor(animationOffset * 20)
+        local animation_time = Game.GetTime()
+        local animation_offset = math.sin(animation_time * 2) * 5
+       
+        local alpha = math.floor((math.sin(animation_time * 2) + 1) * 0.5 * 77)
+        local color = alpha * 256^3 + 0x200060
 
         if menu.Draw.Draw_watermark.value == 0 then
             Renderer.DrawRectFilled(Math.Vector2(1000, 8), Math.Vector2(898, 24), 0x8050C878, 10.0, Renderer.ImDrawFlags.None)
@@ -312,13 +327,72 @@ return function()
         end
 
         if menu.Draw.Draw_watermark.value == 1 then
-            Renderer.DrawRectFilled(Math.Vector2(941 - animationOffset * 3 , 8), Math.Vector2(1001, 24), 0x99FFD700, 10.0, Renderer.ImDrawFlags.None)
-            Renderer.DrawRectFilled(Math.Vector2(898, 8), Math.Vector2(959 + animationOffset * 3, 24), 0x8050C878, 10.0, Renderer.ImDrawFlags.None)
+            Renderer.DrawRectFilled(Math.Vector2(941 - animation_offset * 3 , 8), Math.Vector2(1001, 24), 0x99FFD700, 10.0, Renderer.ImDrawFlags.None)
+            Renderer.DrawRectFilled(Math.Vector2(898, 8), Math.Vector2(959 + animation_offset * 3, 24), 0x8050C878, 10.0, Renderer.ImDrawFlags.None)
             Renderer.DrawRectFilled(Math.Vector2(900, 9), Math.Vector2(1000, 23), 0xFF200060, 10.0, Renderer.ImDrawFlags.None)
             Renderer.DrawText("Muscular Teemo", Math.Vector2(912, 9), 13, color)
         end
-    end
 
+        if menu.Draw.Draw_watermark.value == 2 then 
+            --local screenres = Renderer.GetResolution()
+          
+            -- glow
+            Renderer.DrawRectFilled(Math.Vector2(427 , 982), Math.Vector2(553, 1077), color, 5.0, Renderer.ImDrawFlags.None)
+            Renderer.DrawRectFilled(Math.Vector2(426 , 981), Math.Vector2(554, 1078), color, 5.0, Renderer.ImDrawFlags.None)
+            Renderer.DrawRectFilled(Math.Vector2(425 , 980), Math.Vector2(555, 1079), color, 5.0, Renderer.ImDrawFlags.None)
+            --
+            
+            Renderer.DrawRectFilled(Math.Vector2(429 , 984), Math.Vector2(551, 1076), 0xFF200060, 0.9, Renderer.ImDrawFlags.None)
+            Renderer.DrawRectFilled(Math.Vector2(430 , 985), Math.Vector2(550, 1075), 0xFF000000, 0.9, Renderer.ImDrawFlags.None)
+            Renderer.DrawRectFilled(Math.Vector2(430 , 985), Math.Vector2(550, 1000), 0xFF200060, 0.9, Renderer.ImDrawFlags.None)
+
+            -- horizontal
+            -- underlayer
+           -- Renderer.DrawLine2D(Math.Vector2(430, 1000), Math.Vector2(440, 1000), 0x4DFFD700 , 1)
+           -- Renderer.DrawLine2D(Math.Vector2(550, 985), Math.Vector2(539, 985), 0x4DFFD700 , 1)
+
+            -- layer
+            Renderer.DrawLine2D(Math.Vector2(430, 1000), Math.Vector2(440 - animation_offset * 2, 1000), 0xB30066CC, 1)
+            Renderer.DrawLine2D(Math.Vector2(550, 985), Math.Vector2(539 - animation_offset * 2, 985), 0xB30066CC, 1)
+            
+            --vertical
+            -- underlayer 
+            
+            --Renderer.DrawLine2D(Math.Vector2(550, 985), Math.Vector2(550, 993), 0x4DFFD700 , 1)
+           -- Renderer.DrawLine2D(Math.Vector2(430, 992), Math.Vector2(430, 1000), 0x4DFFD700 , 1)
+
+            -- layer
+            Renderer.DrawLine2D(Math.Vector2(550, 985), Math.Vector2(550, 993 - animation_offset * 1.6), 0xB30066CC, 1)
+            Renderer.DrawLine2D(Math.Vector2(430, 992 - animation_offset * 1.6), Math.Vector2(430, 1000), 0xB30066CC, 1)
+
+            Renderer.DrawText("wilency - Teemo", Math.Vector2(447, 985), 15, 0xFF000000)
+            Renderer.DrawText("wilency - Teemo", Math.Vector2(446, 984), 15, 0xFFFFFFFF)
+
+            Renderer.DrawText("keys:", Math.Vector2(433, 1000), 15, 0xB30066CC)
+            Renderer.DrawText("use shroom spot:", Math.Vector2(433, 1015), 15, 0xB30066CC)
+            Renderer.DrawText("flee and shroom:", Math.Vector2(433, 1030), 15, 0xB30066CC)
+
+            local usagecolor = 0xFF200060
+            local usagecolor2 = 0xFF200060
+            if Champions.LastHit then usagecolor = 0xB30066CC end
+            if Champions.Flee then usagecolor2 = 0xB30066CC end
+
+            Renderer.DrawText("|  |", Math.Vector2(531, 1015), 15, usagecolor)
+            Renderer.DrawText("|  |", Math.Vector2(531, 1030), 15, usagecolor2)
+
+            Renderer.DrawText("X", Math.Vector2(536, 1015), 15, 0xB30066CC)
+            Renderer.DrawText("Z", Math.Vector2(536, 1030), 15, 0xB30066CC)
+            local username = client.GetUserName()
+            
+            if username == "altimor" then
+                local tX, tY = Renderer.CalcTextSize("debug: "..debug_text, 15)
+                Renderer.DrawRectFilled(Math.Vector2(429 , 949), Math.Vector2(429 + tX + 11, 971), 0xFF200060, 0.9, Renderer.ImDrawFlags.None)
+                Renderer.DrawRectFilled(Math.Vector2(430 , 950), Math.Vector2(430 + tX + 10, 970), 0xFF000000, 0.9, Renderer.ImDrawFlags.None)
+                Renderer.DrawText("debug:", Math.Vector2(433, 951), 15, 0xB30066CC)
+                Renderer.DrawText(debug_text, Math.Vector2(475, 951), 15, 0xADFF2F00)
+            end
+        end
+    end
     local function after_attack()
         if Q:Ready() then q_logic() end
     end
@@ -361,15 +435,11 @@ return function()
                 local existing_shroom = shrooms_here[i]
                 if close_enough(shroom_position, existing_shroom, threshold) then
                     table.remove(shrooms_here, i)
-                    --print("Removed shroom: ", existing_shroom.x, existing_shroom.y, existing_shroom.z)
 
                     for _, default_shroom in ipairs(removed_spots) do
                         if close_enough(shroom_position, default_shroom, threshold) then
                             table.insert(shroomtable, shroom_position)
-                            --print("Inserted shroom at: ", shroom_position.x, shroom_position.y, shroom_position.z)
                             break 
-                        else
-                            --print("Not close enough to: ", default_shroom.x, default_shroom.y, default_shroom.z)
                         end
                     end
                     break
